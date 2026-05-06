@@ -14,7 +14,7 @@ const CONFIG = {
     ORG_VIDEO: "69d8b6007d05daf89785f93b"
   },
   WHATSAPP: {
-    SERVER_URL: "https://boot-proteins-website-quarter.trycloudflare.com/targets"
+    SERVER_URL: "https://boot-proteins-website-quarter.trycloudflare.com"
   },
   APP: {
     NAME: "Time Slot Scheduler",
