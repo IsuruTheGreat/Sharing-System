@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp QR — Link Device</title>
+  <script src="../Config/Config.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f5f0e8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: white;
+      border-radius: 2rem;
+      padding: 2.5rem 2rem;
+      text-align: center;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+      max-width: 360px;
+      width: 90%;
+    }
+    .card-icon {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, #25d366, #128c7e);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      margin: 0 auto 1rem;
+    }
+    h2 { color: #1a1a1a; font-size: 1.3rem; margin-bottom: 0.3rem; }
+    .sub { color: #8a6a5a; font-size: 0.84rem; margin-bottom: 1.5rem; }
+    #qrWrap img {
+      width: 220px;
+      height: 220px;
+      border-radius: 1rem;
+      border: 3px solid #f0e2d6;
+    }
+    .hint {
+      font-size: 0.82rem;
+      color: #7a5a4a;
+      margin-top: 1rem;
+      line-height: 1.7;
+    }
+    .hint strong { color: #1a7a42; }
+    .status-ok {
+      color: #2e7d32;
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin: 1rem 0 0.5rem;
+    }
+    .status-err { color: #c62828; font-size: 0.9rem; margin: 1rem 0; }
+    .spinner {
+      width: 44px; height: 44px;
+      border: 4px solid #f0e2d6;
+      border-top-color: #25d366;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      margin: 1.5rem auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .retry-btn {
+      margin-top: 1rem;
+      padding: 0.5rem 1.5rem;
+      background: #b34e1a;
+      color: white;
+      border: none;
+      border-radius: 2rem;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 600;
+      font-family: inherit;
+    }
+    .retry-btn:hover { background: #923d12; }
+    .back-link {
+      display: inline-block;
+      margin-top: 1.5rem;
+      font-size: 0.78rem;
+      color: #9a8c7f;
+      text-decoration: none;
+    }
+    .back-link:hover { color: #b34e1a; }
+    .server-tag {
+      font-size: 0.7rem;
+      color: #ccc;
+      margin-top: 1.2rem;
+      word-break: break-all;
+    }
+    .refresh-note {
+      font-size: 0.75rem;
+      color: #b34e1a;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="card-icon">📱</div>
+  <h2>WhatsApp QR Code</h2>
+  <p class="sub">Link your WhatsApp to the system</p>
+
+  <div id="qrWrap"><div class="spinner"></div></div>
+  <div id="qrHint"></div>
+
+  <a href="Admin.html" class="back-link">← Back to Admin Panel</a>
+  <div class="server-tag" id="serverTag"></div>
+</div>
+
+<script>
+  const res = await fetch(`${CONFIG.SCRIPT_URL}?action=getWaServerUrl`);
+  const { url: SERVER } = await res.json();
+  
+  document.getElementById("serverTag").textContent = "Server: " + SERVER;
+
+  async function check() {
+    const wrap = document.getElementById("qrWrap");
+    const hint = document.getElementById("qrHint");
+
+    wrap.innerHTML = '<div class="spinner"></div>';
+    hint.innerHTML = "";
+
+    try {
+      const res  = await fetch(SERVER + "/status");
+      const data = await res.json();
+
+      if (data.qrCode) {
+        wrap.innerHTML = `<img src="${data.qrCode}" alt="WhatsApp QR Code">`;
+        hint.innerHTML = `
+          <p class="hint">
+            On your phone:<br>
+            <strong>WhatsApp → Linked Devices → Link a Device</strong><br>
+            then scan this QR code.
+          </p>
+          <p class="refresh-note">QR auto-refreshes every 20 seconds</p>`;
+        setTimeout(check, 20000);
+
+      } else if (data.ready) {
+        wrap.innerHTML = `<p class="status-ok">✅ WhatsApp Connected!</p>`;
+        hint.innerHTML = `
+          <p class="hint">
+            Your WhatsApp is linked to the system.<br>
+            OTP login is now working.<br><br>
+            You can close this page.
+          </p>`;
+
+      } else {
+        wrap.innerHTML = `
+          <p class="status-err">⚠️ ${data.error || "WhatsApp not connected"}</p>
+          <button class="retry-btn" onclick="check()">Try Again</button>`;
+        hint.innerHTML = `<p class="hint">Make sure the server is running on your VPS.</p>`;
+      }
+
+    } catch (err) {
+      wrap.innerHTML = `
+        <p class="status-err">❌ Cannot reach WhatsApp server</p>
+        <button class="retry-btn" onclick="check()">Retry</button>`;
+      hint.innerHTML = `
+        <p class="hint">
+          Check that:<br>
+          1. Server is running on VPS (<code>node server.js</code>)<br>
+          2. Cloudflare tunnel is running<br>
+          3. <strong>Config.js → WHATSAPP.SERVER_URL</strong> matches the current tunnel URL
+        </p>`;
+    }
+  }
+
+  check();
+</script>
+</body>
+</html>
